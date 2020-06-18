@@ -3,23 +3,18 @@
 #include <Math.h>
 #include <PID_v1.h>
 
+#include <Adafruit_SleepyDog.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <TinyGPS++.h>
-#include <SimpleServo.h>
-#include <Timer.h>
-#include <Log.h>
+
+#include <TrackerConfiguration.h>
 #include <Telemetry.h>
+
+#include <SimpleServo.h>
+#include <SimpleTimer.h>
+#include <SimpleLog.h>
 #include <SimpleHDLC.h>
 #include <SimpleMessageProtocol.h>
-#include <TinyGPS++.h>
-
-#define PAN_SERVO_CHANNEL 5
-#define TILT_SERVO_CHANNEL 4
-
-#define PAN_SERVO_PWM_MIN  150  // this is the 'minimum' pulse length count (out of 4096) Left
-#define PAN_SERVO_PWM_MAX  600  // this is the 'maximum' pulse length count (out of 4096) Right
-#define TILT_SERVO_PWM_MIN  260 // Vertical
-#define TILT_SERVO_PWM_MAX  470 // Horizontal
 
 /*
  * Creating some new Serial ports using M0 SERCOM for peripherals
@@ -48,24 +43,25 @@ Stream& command_input_stream = Serial;              /**< Message and command int
 Stream& gps_input_stream = Serial1;                 /**< GPS device input stream, this is of type HardwareSerial */
 Stream& radio_input_output_stream = Serial2;        /**< Radio input output stream, this is of type HardwareSerial */
 
-SimpleHDLC usb(command_input_stream, &handleMessageCallback);                               /**< HDLC messaging object, linked to message callback */
-SimpleHDLC radio(radio_input_output_stream, &handleMessageCallback);                        /**< HDLC messaging object, linked to message callback */
+SimpleHDLC usb(command_input_stream, &handleMessageCallback);                                       /**< HDLC messaging object, linked to message callback */
+SimpleHDLC radio(radio_input_output_stream, &handleMessageCallback);                                /**< HDLC messaging object, linked to message callback */
 
-Adafruit_PWMServoDriver servo_driver = Adafruit_PWMServoDriver();                           /**< Adafruit servo driver object */
+Adafruit_PWMServoDriver servo_driver = Adafruit_PWMServoDriver();                                   /**< Adafruit servo driver object */
 SimpleServo tilt_servo(TILT_SERVO_PWM_MAX, TILT_SERVO_PWM_MIN, TILT_SERVO_CHANNEL, &servo_driver);
 SimpleServo pan_servo(PAN_SERVO_PWM_MIN, PAN_SERVO_PWM_MAX, PAN_SERVO_CHANNEL, &servo_driver);
 
-Log logger(logging_output_stream, LOG_LEVELS::INFO);                                        /**< Log object */
-Telemetry telemetry(&gps_input_stream);                                                     /**< Telemetry object */
+SimpleLog logger(logging_output_stream, LOG_LEVELS::INFO);                                          /**< Log object */
+Telemetry telemetry(&logger, &gps_input_stream);                                                    /**< Telemetry object */
+
 uint8_t node_id_ = 2;
 uint8_t node_type_ = NODE_TYPES::NODE_TYPE_TRACKER;
 
 uint8_t target_node_id = 1;
 SimpleUtils::TelemetryStruct target_location;
 
-Timer timer_execution_led;            /**< Timer sets interval between run led blinks */
-Timer timer_telemetry_check;          /**< Timer sets interval between telemetry checks */
-Timer timer_servo_update_delay;       /**< Timer sets interval between position updates */
+SimpleTimer timer_execution_led;                    /**< Timer sets interval between run led blinks */
+SimpleTimer timer_telemetry_check;                  /**< Timer sets interval between telemetry checks */
+SimpleTimer timer_servo_update_delay;               /**< Timer sets interval between position updates */
 
 /**
  * @brief System setup function
@@ -109,6 +105,9 @@ void setup() {
     servo_driver.setPWMFreq(SERVO_PWM_FREQUENCY);
     logger.event(LOG_LEVELS::INFO, "Done!");
 
+    //Initialize the watchdog
+    Watchdog.enable(WATCHDOG_TIMEOUT);
+
     logger.event(LOG_LEVELS::INFO, "Finished initialisation, starting program!");
 }
 
@@ -127,6 +126,7 @@ void loop() {
     timer_servo_update_delay.start();
 
     double target_distance, tilt_setpoint, pan_setpoint;
+    unsigned long time_of_last_error = millis();
 
     tilt_servo.start();
     pan_servo.start();
@@ -146,6 +146,7 @@ void loop() {
             if(!telemetry.get(current_telemetry))
             {
                 logger.event(LOG_LEVELS::ERROR, "Failed to get update from Telemetry subsystem!");
+                time_of_last_error = millis();
             }
             else
             {
@@ -169,13 +170,29 @@ void loop() {
         //Execution LED indicator blinkies
         if(timer_execution_led.check())
         {
+            //Reset Watchdog
+            Watchdog.reset();
+
+            //Blink LED
             if(digitalRead(LED_BUILTIN) == HIGH)
             {
                 digitalWrite(LED_BUILTIN, LOW);
+                digitalWrite(LED_STATUS_B, LOW);
             }
             else
             {
                 digitalWrite(LED_BUILTIN, HIGH);
+                digitalWrite(LED_STATUS_B, HIGH);
+            }
+
+            //Set Health LED color
+            if(millis() - time_of_last_error > 1000 && digitalRead(LED_BUILTIN) == LOW)
+            {
+                digitalWrite(LED_STATUS_G, HIGH);
+            }
+            else
+            {
+                digitalWrite(LED_STATUS_G, LOW);
             }
 
             //Send Heartbeat message

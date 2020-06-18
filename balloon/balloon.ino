@@ -2,20 +2,22 @@
 #include <Servo.h>
 #include "wiring_private.h" // For ATSAMD M0 pinPeripheral() function
 
-#include <SimpleUtils.h>
-#include <Timer.h>
+#include <Adafruit_SleepyDog.h>
+#include <Adafruit_PWMServoDriver.h>
+#include <RTClib.h>
+
+#include <BalloonConfiguration.h>
 #include <Telemetry.h>
-#include <Log.h>
-#include <DataLog.h>
+#include <MissionState.h>
+
+#include <SimpleUtils.h>
+#include <SimpleTimer.h>
+#include <SimpleLog.h>
+#include <SimpleDataLog.h>
 #include <SimpleHDLC.h>
 #include <SimpleMessageProtocol.h>
-#include <MissionState.h>
-#include <HardwareConfiguration.h>
-#include <RTClib.h>
-#include <Adafruit_PWMServoDriver.h>
 #include <SimpleServo.h>
 #include <SimpleMusic.h>
-#include <Adafruit_SleepyDog.h>
 
 /*
  * Creating some new Serial ports using M0 SERCOM for peripherals
@@ -58,8 +60,8 @@ Stream& aprs_output_stream = Serial5;               /**< APRS output data stream
 SimpleHDLC radio(radio_input_output_stream, &handleMessageCallback);                            /**< HDLC messaging object, linked to message callback */
 SimpleHDLC cellular(cellular_input_output_stream, &handleMessageCallback);                      /**< HDLC messaging object, linked to message callback */
 RTC_DS3231 rtc;                                                                                 /**< Real Time Clock object */
-Log logger(logging_output_stream, &rtc, LOG_LEVELS::INFO);                                      /**< Log object */
-DataLog telemetry_logger(SD_CHIP_SELECT, &rtc);                                                 /**< Data logging object for telemetry */
+SimpleLog logger(logging_output_stream, &rtc, LOG_LEVELS::INFO);                                /**< Log object */
+SimpleDataLog telemetry_logger(SD_CHIP_SELECT, &rtc);                                           /**< Data logging object for telemetry */
 Telemetry telemetry(&logger, &gps_input_stream);                                                /**< Telemetry object */
 bool update_rtc_from_gps = false;                                                               /**< If RTC lost power we need to update from GPS */
 Adafruit_PWMServoDriver servo_driver = Adafruit_PWMServoDriver();                               /**< Adafruit servo driver object */
@@ -74,12 +76,12 @@ SimpleMusic buzzer(BUZZER);                                                     
 uint8_t node_id_ = 1;
 uint8_t node_type_ = NODE_TYPES::NODE_TYPE_BALLOON;
 
-MissionState mission_state;                     /**< Mission state state machine object */
-Timer timer_telemetry_check;                    /**< Timer sets interval between checking telemetry */
-Timer timer_telemetry_report;                   /**< Timer sets interval between reporting telemetry */
-bool timer_telemetry_report_override = false;   /**< Manual interval override flag (for command_set_report_interval)*/
-Timer timer_telemetry_log;                      /**< Timer sets interval between logging telemetry */
-Timer timer_execution_led;                      /**< Timer sets intercal between run led blinks */
+MissionState mission_state;                               /**< Mission state state machine object */
+SimpleTimer timer_telemetry_check;                        /**< Timer sets interval between checking telemetry */
+SimpleTimer timer_telemetry_report;                       /**< Timer sets interval between reporting telemetry */
+bool timer_telemetry_report_override = false;             /**< Manual interval override flag (for command_set_report_interval)*/
+SimpleTimer timer_telemetry_log;                          /**< Timer sets interval between logging telemetry */
+SimpleTimer timer_execution_led;                          /**< Timer sets intercal between run led blinks */
 
 const String telemetry_log_name = "tlm.csv";
 const String telemetry_log_header = "ts,lat,lon,alt,alt_elpd,alt_rel,alt_baro,vel_vert,vel_hor,roll,pitch,hdng,crs,temp,pres,hdop,fix";
@@ -599,7 +601,7 @@ void stop()
     digitalWrite(LED_STATUS_G, LOW);
     digitalWrite(LED_STATUS_B, LOW);
 
-    Timer fail_timer;
+    SimpleTimer fail_timer;
     fail_timer.setInterval(100);
     fail_timer.start();
 
