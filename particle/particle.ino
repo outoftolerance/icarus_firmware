@@ -9,7 +9,7 @@ Stream& logging_stream = Serial;                            /**< Logging output 
 Stream& icarus_stream = Serial1;                            /**< Icarus stream, this is of type HardwareSerial */
 
 SimpleHDLC icarus(icarus_stream, &handleMessageCallback);   /**< HDLC messaging object, linked to message callback */
-SimpleLog logger(logging_stream, &rtc, LOG_LEVELS::INFO);   /**< Log object */
+SimpleLog logger(logging_stream, LOG_LEVELS::INFO);         /**< Log object */
 
 void setup() 
 {
