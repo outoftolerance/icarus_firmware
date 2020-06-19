@@ -1,0 +1,11 @@
+*.o
+*.o.d
+*.dfu
+*.ld
+*.hex
+*.elf
+*.lst
+*.map
+*.bin
+*.bin.no_crc
+*.bin.crc_block
