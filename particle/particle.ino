@@ -84,7 +84,7 @@ void handleMessageTelemetryReport(hdlcMessage& message)
     logger.event(LOG_LEVELS::INFO, "Received telemetry report message");
 
     //Check if connected
-    if(cellular_enabled && Cellular.ready() && Particle.connected())
+    if(Cellular.ready() && Particle.connected())
     {
         //Publish location report
         Particle.publish("TELEMETRY_REPORT", "yo", LOCATION_REPORT_TTL, PRIVATE);
