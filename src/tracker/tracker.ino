@@ -270,7 +270,13 @@ void handleMessageCallback(hdlcMessage message)
 
 void handleMessageHeartbeat(hdlcMessage& message)
 {
-    logger.event(LOG_LEVELS::DEBUG, "Ignoring heartbeat message.");
+    logger.event(LOG_LEVELS::DEBUG, "Received heartbeat message!");
+    smpMessageHeartbeat heartbeat;
+    smpMessageHeartbeatDecode(message, heartbeat);
+
+    message.node_id;
+    message.node_type;
+    heartbeat.state;
 }
 
 void handleMessageTelemetryReport(hdlcMessage& message)
