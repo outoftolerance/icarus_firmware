@@ -53,8 +53,8 @@ void SERCOM2_Handler()
 
 Stream& logging_output_stream = Serial;             /**< Logging output stream, this is of type Serial_ */
 Stream& gps_input_stream = Serial1;                 /**< GPS device input stream, this is of type HardwareSerial */
-Stream& radio_input_output_stream = Serial3;        /**< Radio input output stream, this is of type HardwareSerial */
-Stream& cellular_input_output_stream = Serial2;     /**< Cellular input output stream, this is of type HardwareSerial */
+Stream& radio_input_output_stream = Serial2;        /**< Radio input output stream, this is of type HardwareSerial */
+Stream& cellular_input_output_stream = Serial3;     /**< Cellular input output stream, this is of type HardwareSerial */
 Stream& aprs_output_stream = Serial5;               /**< APRS output data stream, this is of type Serial_ */
 
 SimpleHDLC radio(radio_input_output_stream, &handleMessageCallback);                            /**< HDLC messaging object, linked to message callback */

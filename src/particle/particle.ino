@@ -41,16 +41,23 @@ void loop()
         //Check current altitude
         if(current_telemetry.altitude <= AIRPLANE_MODE_ALTITUDE)
         {
+            logger.event(LOG_LEVELS::INFO, "Lower than Airplane Mode altitude.");
             if(!cellular_enabled)
             {
+                logger.event(LOG_LEVELS::INFO, "Enabling cellular module!");
+
                 Cellular.on();
                 cellular_enabled = true;
             }
         }
         else
         {
+            logger.event(LOG_LEVELS::INFO, "Enabling cellular module!");
+            
             if(cellular_enabled)
             {
+                logger.event(LOG_LEVELS::INFO, "Disabling cellular module!");
+
                 Cellular.off();
                 cellular_enabled = false;
             }
