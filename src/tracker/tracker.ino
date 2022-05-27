@@ -120,15 +120,15 @@ void setup() {
  * @details Called after setup() function, loops inifiteley, everything happens here
  */
 void loop() {
-    SimpleUtils::TelemetryStruct current_telemetry; /**< Current telemetry */
+    SimpleUtils::TelemetryStruct current_telemetry;                 /**< Current telemetry */
 
-    double target_distance; /**< Distance to the target */
-    double tilt_setpoint, pan_setpoint; /**< Calculated setpoints for the tracker */
+    double target_distance;                                         /**< Distance to the target */
+    double tilt_setpoint, pan_setpoint;                             /**< Calculated setpoints for the tracker */
     unsigned long time_of_last_error = millis();
 
-    timer_execution_led.setInterval(100);  /**< LED blink interval */
-    timer_telemetry_update.setInterval(SENSOR_UPDATE_INTERVAL); /**< Telemetry update interval */
-    timer_telemetry_check.setInterval(5);   /**< Telemetry check interval */
+    timer_execution_led.setInterval(500);                           /**< LED blink interval */
+    timer_telemetry_update.setInterval(SENSOR_UPDATE_INTERVAL);     /**< Telemetry update interval */
+    timer_telemetry_check.setInterval(5);                           /**< Telemetry check interval */
 
     // Start the program timers
     timer_execution_led.start();

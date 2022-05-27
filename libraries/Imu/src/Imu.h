@@ -17,6 +17,7 @@ class Imu
 		bool getAccelerometer(SimpleUtils::AxisData& accel);
         bool getGyroscope(SimpleUtils::AxisData& gyro);
         bool getMagnetometer(SimpleUtils::AxisData& mag);
+
 	private:
 		Adafruit_FXAS21002C gyroscope_ = Adafruit_FXAS21002C(0x0021002C);
         Adafruit_FXOS8700 accelerometer_magnetometer_ = Adafruit_FXOS8700(0x8700A, 0x8700B);

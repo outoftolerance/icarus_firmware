@@ -210,17 +210,23 @@ bool Telemetry::get(SimpleUtils::TelemetryStruct& telemetry)
 
 bool Telemetry::getAccelerometerRaw(SimpleUtils::AxisData& accelerometer)
 {
-    return false;
+    imu_.getAccelerometer(accelerometer);
+
+    return true;
 }
 
 bool Telemetry::getGyroscopeRaw(SimpleUtils::AxisData& gyroscope)
 {
-    return false;
+    imu_.getGyroscope(gyroscope);
+    
+    return true;
 }
 
 bool Telemetry::getMagnetometerRaw(SimpleUtils::AxisData& magnetometer)
 {
-    return false;
+    imu_.getMagnetometer(magnetometer);
+
+    return true;
 }
 
 bool Telemetry::getBarometerRaw(float& data)
