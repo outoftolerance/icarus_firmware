@@ -51,7 +51,7 @@ SimpleServo tilt_servo(TILT_SERVO_PWM_MAX, TILT_SERVO_PWM_MIN, TILT_SERVO_CHANNE
 SimpleServo pan_servo(PAN_SERVO_PWM_MIN, PAN_SERVO_PWM_MAX, PAN_SERVO_CHANNEL, &servo_driver);
 
 SimpleLog logger(logging_output_stream, LOG_LEVELS::INFO);                                          /**< Log object */
-Telemetry telemetry(&logger, &gps_input_stream);                                                    /**< Telemetry object */
+Telemetry telemetry(&logger, &gps_input_stream, false);                                              /**< Telemetry object */
 
 uint8_t node_id_ = 2;
 uint8_t node_type_ = NODE_TYPES::NODE_TYPE_TRACKER;
@@ -60,8 +60,10 @@ uint8_t target_node_id = 1;
 SimpleUtils::TelemetryStruct target_location;
 
 SimpleTimer timer_execution_led;                    /**< Timer sets interval between run led blinks */
+SimpleTimer timer_telemetry_update;                 /**< Timer sets interval between telemetry updates */
 SimpleTimer timer_telemetry_check;                  /**< Timer sets interval between telemetry checks */
 SimpleTimer timer_servo_update_delay;               /**< Timer sets interval between position updates */
+SimpleTimer timer_stop_log_interval;                /**< Timer sets interval between log output in stop function */
 
 /**
  * @brief System setup function
@@ -69,7 +71,7 @@ SimpleTimer timer_servo_update_delay;               /**< Timer sets interval bet
  */
 void setup() {
     //Sleep until debug can connect
-    //while(!Serial);
+    while(!Serial);
 
     //Setup pin modes
     pinMode(LED_BUILTIN, OUTPUT);
@@ -95,7 +97,7 @@ void setup() {
     if(!telemetry.init())
     {
         logger.event(LOG_LEVELS::FATAL, "Failed to initialise Telemetry subsystem!");
-        stop();
+        stop("Failed to initialise Telemetry subsystem!");
     }
     logger.event(LOG_LEVELS::INFO, "Done!");
 
@@ -106,7 +108,9 @@ void setup() {
     logger.event(LOG_LEVELS::INFO, "Done!");
 
     //Initialize the watchdog
+    logger.event(LOG_LEVELS::INFO, "Starting Watchdog...");
     Watchdog.enable(WATCHDOG_TIMEOUT);
+    logger.event(LOG_LEVELS::INFO, "Done!");
 
     logger.event(LOG_LEVELS::INFO, "Finished initialisation, starting program!");
 }
@@ -116,28 +120,41 @@ void setup() {
  * @details Called after setup() function, loops inifiteley, everything happens here
  */
 void loop() {
-    timer_execution_led.setInterval(1000);
-    timer_telemetry_check.setInterval(5);
-    
-    SimpleUtils::TelemetryStruct current_telemetry;                      /**< Current telemetry */
+    SimpleUtils::TelemetryStruct current_telemetry; /**< Current telemetry */
 
+    double target_distance; /**< Distance to the target */
+    double tilt_setpoint, pan_setpoint; /**< Calculated setpoints for the tracker */
+    unsigned long time_of_last_error = millis();
+
+    timer_execution_led.setInterval(100);  /**< LED blink interval */
+    timer_telemetry_update.setInterval(SENSOR_UPDATE_INTERVAL); /**< Telemetry update interval */
+    timer_telemetry_check.setInterval(5);   /**< Telemetry check interval */
+
+    // Start the program timers
     timer_execution_led.start();
+    timer_telemetry_update.start();
     timer_telemetry_check.start();
     timer_servo_update_delay.start();
 
-    double target_distance, tilt_setpoint, pan_setpoint;
-    unsigned long time_of_last_error = millis();
-
+    // Start the servo controllers
     tilt_servo.start();
     pan_servo.start();
 
+    // Program loop
 	while(1)
 	{
-		//Get messages from HDLC interfaces
+		// Get messages from HDLC interfaces
         usb.receive();
         radio.receive();
 
-        //Telemetry Update
+        // Update telemetry
+        if(timer_telemetry_update.check())
+        {
+            telemetry.update();
+            timer_telemetry_update.reset();
+        }
+
+        // Get latest telemetry
         if(timer_telemetry_check.check())
         {
             //Get latest telemetry
@@ -155,25 +172,25 @@ void loop() {
             }
         }
 
-		//Calculate bearing and azimuth to target
+		// Calculate bearing and azimuth to target
         target_distance = TinyGPSPlus::distanceBetween(current_telemetry.latitude, current_telemetry.longitude, target_location.latitude, target_location.longitude);
         tilt_setpoint = calcAzimuthTo(current_telemetry.altitude, target_location.altitude, target_distance);
         pan_setpoint = TinyGPSPlus::courseTo(current_telemetry.latitude, current_telemetry.longitude, target_location.latitude, target_location.longitude);
 
-		//Move servos until at target
+		// Move servos until at target
         tilt_servo.setTargetAngle(tilt_setpoint);
         tilt_servo.move();
         
         pan_servo.setTargetAngle(pan_setpoint);
         pan_servo.move();
 
-        //Execution LED indicator blinkies
+        // Execution LED indicator blinkies
         if(timer_execution_led.check())
         {
-            //Reset Watchdog
+            // Reset Watchdog
             Watchdog.reset();
 
-            //Blink LED
+            // Blink LED
             if(digitalRead(LED_BUILTIN) == HIGH)
             {
                 digitalWrite(LED_BUILTIN, LOW);
@@ -185,7 +202,7 @@ void loop() {
                 digitalWrite(LED_STATUS_B, HIGH);
             }
 
-            //Set Health LED color
+            // Set Health LED color
             if(millis() - time_of_last_error > 1000 && digitalRead(LED_BUILTIN) == LOW)
             {
                 digitalWrite(LED_STATUS_G, HIGH);
@@ -195,17 +212,17 @@ void loop() {
                 digitalWrite(LED_STATUS_G, LOW);
             }
 
-            //Send Heartbeat message
+            // Send Heartbeat message
             sendHeartbeat(0);
 
-            //Print a bunch of debug information
+            // Print a bunch of debug information
             logger.event(LOG_LEVELS::DEBUG, "Current GPS Latitude    ", current_telemetry.latitude);
             logger.event(LOG_LEVELS::DEBUG, "Current GPS Longitude   ", current_telemetry.longitude);
             logger.event(LOG_LEVELS::DEBUG, "Current GPS Altitude    ", current_telemetry.altitude);
             logger.event(LOG_LEVELS::DEBUG, "Current GPS Course      ", current_telemetry.course);
-            logger.event(LOG_LEVELS::DEBUG, "Current IMU Roll        ", current_telemetry.roll);
-            logger.event(LOG_LEVELS::DEBUG, "Current IMU Pitch       ", current_telemetry.pitch);
-            logger.event(LOG_LEVELS::DEBUG, "Current IMU Yaw         ", current_telemetry.yaw);
+            logger.event(LOG_LEVELS::INFO, "Current IMU Roll        ", current_telemetry.roll * 180 / M_PI);
+            logger.event(LOG_LEVELS::INFO, "Current IMU Pitch       ", current_telemetry.pitch * 180 / M_PI);
+            logger.event(LOG_LEVELS::INFO, "Current IMU Yaw         ", current_telemetry.yaw * 180 / M_PI);
             logger.event(LOG_LEVELS::DEBUG, "Current IMU Heading     ", current_telemetry.heading);
             logger.event(LOG_LEVELS::DEBUG, "Current Baro Altitude   ", current_telemetry.altitude_barometric);
             logger.event(LOG_LEVELS::DEBUG, "Current Baro Pressure   ", current_telemetry.pressure);
@@ -224,6 +241,15 @@ void loop() {
 	}
 }
 
+/**
+ * @brief      Calculates the azimuth angle to a target from a base.
+ *
+ * @param[in]  base_altitude               The base altitude
+ * @param[in]  target_altitude             The target altitude
+ * @param[in]  target_horizontal_distance  The target horizontal distance
+ *
+ * @return     The azimuth angle from the base to the target. Unit is degrees.
+ */
 float calcAzimuthTo(float base_altitude, float target_altitude, float target_horizontal_distance)
 {
 	float altitude_difference = target_altitude - base_altitude;
@@ -231,6 +257,11 @@ float calcAzimuthTo(float base_altitude, float target_altitude, float target_hor
 	return atan2(altitude_difference, target_horizontal_distance) * 180 / M_PI;
 }
 
+/**
+ * @brief      Callback that handles all messages
+ *
+ * @param[in]  message  The message to be handled
+ */
 void handleMessageCallback(hdlcMessage message)
 {
     logger.event(LOG_LEVELS::DEBUG, "Received a message!");
@@ -362,10 +393,19 @@ void sendReportTelemetry(SimpleUtils::TelemetryStruct& telemetry)
     usb.send(message);
 }
 
-void stop()
+void stop(const char stop_reason[])
 {
+    timer_stop_log_interval.setInterval(1000);  /**< Interval to print log messages in stop function */
+    timer_stop_log_interval.start(); /**< Start the timer */
+
     while(1)
     {
+        if(timer_stop_log_interval.check())
+        {
+            logger.event(LOG_LEVELS::FATAL, stop_reason);
+            timer_stop_log_interval.reset();
+        }
+
         digitalWrite(LED_BUILTIN, HIGH);
         delay(50);
         digitalWrite(LED_BUILTIN, LOW);

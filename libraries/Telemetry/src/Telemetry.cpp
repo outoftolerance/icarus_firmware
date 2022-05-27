@@ -9,6 +9,10 @@ Telemetry::Telemetry(SimpleLog* logger):
     altitude_base_is_set_ = false;
     altitude_base_ = 0;
     sensor_update_timer_.setInterval(SENSOR_UPDATE_INTERVAL);
+
+    // Enable all sensors and subsystems appropriately
+    enable_baro_ = true;
+    enable_gps_ = false;
 }
 
 Telemetry::Telemetry(SimpleLog* logger, Stream* gps_serial) :
@@ -20,15 +24,37 @@ Telemetry::Telemetry(SimpleLog* logger, Stream* gps_serial) :
     altitude_base_is_set_ = false;
     altitude_base_ = 0;
     sensor_update_timer_.setInterval(SENSOR_UPDATE_INTERVAL);
+
+    // Enable all sensors and subsystems appropriately
+    enable_baro_ = true;
+    enable_gps_ = true;
+}
+
+Telemetry::Telemetry(SimpleLog* logger, Stream* gps_serial, bool enable_baro) :
+    gps_serial_(gps_serial),
+    logger_(logger)
+{
+    gps_serial_buffer_ = new SimpleBuffer(GPS_SERIAL_BUFFER_SIZE);
+    gps_fix_status_ = false;
+    altitude_base_is_set_ = false;
+    altitude_base_ = 0;
+    sensor_update_timer_.setInterval(SENSOR_UPDATE_INTERVAL);
+
+    // Enable all sensors and subsystems appropriately
+    enable_baro_ = enable_baro;
+    enable_gps_ = true;
 }
 
 /*------------------------------Public Methods------------------------------*/
 
 bool Telemetry::init()
 {
+    logger_->event(LOG_LEVELS::DEBUG, "Initializaing Telemetry");
+
     //Initialise the GPS
-    if(gps_serial_ != NULL)
+    if(enable_gps_ && gps_serial_ != NULL)
     {
+        logger_->event(LOG_LEVELS::DEBUG, "Starting GPS serial interface");
         static_cast<HardwareSerial&>(*gps_serial_).begin(GPS_SERIAL_BAUD);
     }
 
@@ -39,13 +65,13 @@ bool Telemetry::init()
         return false;
     }
 
-    if(!baro_.begin()) {
+    if(enable_baro_ && !baro_.begin()) {
         logger_->event(LOG_LEVELS::DEBUG, "Failed to initialise Barometer!");
         return false;
     }
 
     //Initialise the AHRS filter
-    if(!ahrs_.begin((float)(1.0/(SENSOR_UPDATE_INTERVAL))))
+    if(!ahrs_.begin(1.0 / ((float)SENSOR_UPDATE_INTERVAL / 1000.0)))
     {
         logger_->event(LOG_LEVELS::DEBUG, "Failed to initialise AHRS!");
         return false;
@@ -103,22 +129,34 @@ void Telemetry::update()
     }
     else if(!altitude_base_is_set_)
     {
-        altitude_base_ = baro_.readAltitude(SEALEVELPRESSURE_HPA);
-        altitude_base_is_set_ = true;
+        if(enable_baro_) {
+            altitude_base_ = baro_.readAltitude(SEALEVELPRESSURE_HPA);
+            altitude_base_is_set_ = true;
+        }
     }
 }
 
 bool Telemetry::get(SimpleUtils::TelemetryStruct& telemetry)
 {
-    //Grab data not dependent on GPS
+    //Grab data not dependent on GPS or baro
     telemetry.roll = ahrs_.getRoll();
     telemetry.pitch = ahrs_.getPitch();
     telemetry.yaw = ahrs_.getYaw();
     telemetry.heading = ahrs_.getYawDegrees();
-    telemetry.temperature = baro_.readTemperature();
-    telemetry.pressure = baro_.readPressure();
-    telemetry.humidity = baro_.readHumidity();
-    telemetry.altitude_barometric = baro_.readAltitude(SEALEVELPRESSURE_HPA);
+
+    //Grab data dependent on baro
+    if(enable_baro_) {
+        telemetry.temperature = baro_.readTemperature();
+        telemetry.pressure = baro_.readPressure();
+        telemetry.humidity = baro_.readHumidity();
+        telemetry.altitude_barometric = baro_.readAltitude(SEALEVELPRESSURE_HPA);
+    }
+    else {
+        telemetry.temperature = 0.0;
+        telemetry.pressure = 0.0;
+        telemetry.humidity = 0.0;
+        telemetry.altitude_barometric = 0.0;
+    }
 
     //Assign to output struct
     if(gps_serial_ != NULL)
@@ -242,11 +280,15 @@ bool Telemetry::resetBaseAltitude()
     if(gps_serial_ != NULL)
     {
         altitude_base_ = gps_.altitude.meters();
+        return true;
     }
     else
     {
-        altitude_base_ = baro_.readAltitude(SEALEVELPRESSURE_HPA);   
+        if(enable_baro_) {
+            altitude_base_ = baro_.readAltitude(SEALEVELPRESSURE_HPA);
+            return true;
+        }
     }
 
-    return true;
+    return false;
 }

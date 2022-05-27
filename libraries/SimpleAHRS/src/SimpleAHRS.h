@@ -2,12 +2,24 @@
 #define SimpleAHRS_h
 
 #include <SimpleUtils.h>
-#include <Madgwick.h>
+#include <Adafruit_AHRS_NXPFusion.h>
+#include <Adafruit_AHRS_Madgwick.h>
+#include <Adafruit_AHRS_Mahony.h>
+
+#include <SimpleLog.h>
 
 class SimpleAHRS {
 	public:
 		SimpleAHRS();
+		/**
+		 * @brief      Begins the AHRS filter
+		 *
+		 * @param[in]  sample_rate  The rate in Hz that the sensors are sampled at
+		 *
+		 * @return     True/False if init was successful
+		 */
 		bool begin(float sample_rate);
+
 		bool update(const SimpleUtils::AxisData& accel, const SimpleUtils::AxisData& gyro, const SimpleUtils::AxisData& mag);
 		float getRoll();
 		float getPitch();
@@ -19,16 +31,10 @@ class SimpleAHRS {
 		bool getAccelerationNED(SimpleUtils::AxisData& accel);
 
 	private:
-		Madgwick ahrs_;
+		Adafruit_NXPSensorFusion ahrs_;
+		//Adafruit_Madgwick ahrs_;
+		//Adafruit_Mahony ahrs_;
 		float sample_rate_;
-
-		//Calibration parameters
-        float mag_offsets_[3]            = { 0.93F, -7.47F, -35.23F };      /*< Offsets applied to raw x/y/z mag values */
-        float mag_softiron_matrix_[3][3] = { {  0.986,  -0.035,  0.032 },
-                                             {  -0.035,  0.907,  0.037 },
-                                             {  0.032,   0.037,  1.122 } }; /*< Soft iron error compensation matrix */
-        float mag_field_strength_        = 44.43F;                          /*< Strength of magnetic field recorded */
-        float gyro_zero_offsets_[3]      = { 0.0F, 0.0F, 0.0F };            /*< Offsets applied to compensate for gyro zero-drift error for x/y/z */
 };
 
 #endif

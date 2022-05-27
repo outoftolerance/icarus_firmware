@@ -37,18 +37,26 @@ The following drivers are based on the Adafruit Unified Sensor Driver:
 **Humidity & Temperature**
   - [DHT-sensor-library](https://github.com/adafruit/DHT-sensor-library)
 
+**Humidity, Temperature, & Barometric Pressure**
+  - [Adafruit_BME280_Library](https://github.com/adafruit/Adafruit_BME280_Library/)
+
 **Orientation**
  - [Adafruit_BNO055](https://github.com/adafruit/Adafruit_BNO055)
+
+**All in one device**
+- [Adafruit_LSM9DS0](https://github.com/adafruit/Adafruit_LSM9DS0_Library) (accelerometer, gyroscope, magnetometer)
+- [Adafruit_LSM9DS1](https://github.com/adafruit/Adafruit_LSM9DS1/) (accelerometer, gyroscope, magnetometer)
+
 
 ## How Does it Work? ##
 
 Any driver that supports the Adafruit unified sensor abstraction layer will implement the Adafruit\_Sensor base class.  There are two main typedefs and one enum defined in Adafruit_Sensor.h that are used to 'abstract' away the sensor details and values:
 
-**Sensor Types (sensors\_type\_t)**
+## Sensor Types (`sensors_type_t`)
 
 These pre-defined sensor types are used to properly handle the two related typedefs below, and allows us determine what types of units the sensor uses, etc.
 
-```
+```c++
 /** Sensor types */
 typedef enum
 {
@@ -70,11 +78,11 @@ typedef enum
 } sensors_type_t;
 ```
 
-**Sensor Details (sensor\_t)**
+## Sensor Details (`sensor_t`)
 
 This typedef describes the specific capabilities of this sensor, and allows us to know what sensor we are using beneath the abstraction layer.
 
-```
+```c++
 /* Sensor details (40 bytes) */
 /** struct sensor_s is used to describe basic information about a specific sensor. */
 typedef struct
@@ -101,11 +109,11 @@ The individual fields are intended to be used as follows:
 - **resolution**: The smallest difference between two values that this sensor can report (in the appropriate SI unit)
 - **min\_delay**: The minimum delay in microseconds between two sensor events, or '0' if there is no constant sensor rate
 
-**Sensor Data/Events (sensors\_event\_t)**
+## Sensor Data/Events (`sensors_event_t`)
 
 This typedef is used to return sensor data from any sensor supported by the abstraction layer, using standard SI units and scales.
 
-```
+```c++
 /* Sensor event (36 bytes) */
 /** struct sensor_event_s is used to provide a single sensor event in a common format. */
 typedef struct
@@ -141,21 +149,21 @@ It includes the following fields:
 - **timestamp**: time in milliseconds when the sensor value was read
 - **data[4]**: An array of four 32-bit values that allows us to encapsulate any type of sensor data via a simple union (further described below)
 
-**Required Functions**
+## Required Functions
 
 In addition to the two standard types and the sensor type enum, all drivers based on Adafruit_Sensor must also implement the following two functions:
 
-```
+```c++
 bool getEvent(sensors_event_t*);
 ```
 Calling this function will populate the supplied sensors\_event\_t reference with the latest available sensor data.  You should call this function as often as you want to update your data.
 
-```
+```c++
 void getSensor(sensor_t*);
 ```
 Calling this function will provide some basic information about the sensor (the sensor name, driver version, min and max values, etc.
 
-**Standardised SI values for sensors\_event\_t**
+## Standardised SI values for `sensors_event_t`
 
 A key part of the abstraction layer is the standardisation of values on SI units of a particular scale, which is accomplished via the data[4] union in sensors\_event\_t above.  This 16 byte union includes fields for each main sensor type, and uses the following SI units and scales:
 
@@ -180,7 +188,7 @@ Every compliant sensor can now be read using a single, well-known 'type' (sensor
 
 An example of reading the [TSL2561](https://github.com/adafruit/Adafruit_TSL2561) light sensor can be seen below:
 
-```
+```c++
  Adafruit_TSL2561 tsl = Adafruit_TSL2561(TSL2561_ADDR_FLOAT, 12345);
  ...
  /* Get a new sensor event */ 
@@ -202,7 +210,7 @@ An example of reading the [TSL2561](https://github.com/adafruit/Adafruit_TSL2561
 
 Similarly, we can get the basic technical capabilities of this sensor with the following code:
 
-```
+```c++
  sensor_t sensor;
  
  sensor_t sensor;

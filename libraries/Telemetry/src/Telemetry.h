@@ -39,6 +39,13 @@ class Telemetry
         Telemetry(SimpleLog* logger, Stream* gps_stream);
 
         /**
+         * @brief      Telemetry class constructor with GPS and baro enable
+         * @param      gps_stream  Pointer to the Stream object for the GPS serial port
+         * @param      enable_baro Boolean whether to enable barometer or not
+         */
+        Telemetry(SimpleLog* logger, Stream* gps_stream, bool enable_baro);
+
+        /**
          * @brief      Initialises all variables and objects to their default value/state
          */
         bool init();
@@ -129,6 +136,9 @@ class Telemetry
         float altitude_base_;                           /**< Altitude the system was initialized at, used to calculate relative altitude */
         float altitude_gps_previous_;                   /**< Previous GPS altitude, used for vertical velocity estimation */
         long millis_altitude_gps_previous_;             /**< The timestamp of the previous GPS altitude reading */
+
+        bool enable_baro_;
+        bool enable_gps_;
 
         SimpleTimer sensor_update_timer_;
         Imu imu_;
